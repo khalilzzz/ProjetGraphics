@@ -1,172 +1,229 @@
 #include "scene.hpp"
-
+#include <cmath>
 
 using namespace cgp;
 
-void deform_terrain(mesh& m)
-{
-	// Set the terrain to have a gaussian shape
-	for (int k = 0; k < m.position.size(); ++k)
-	{
-		vec3& p = m.position[k];
-		float d2 = p.x*p.x + p.y * p.y;
-		float z = exp(-d2 / 4)-1;
-
-		z = z + 0.05f*noise_perlin({ p.x,p.y });
-
-		p = { p.x, p.y, z };
-	}
-
-	m.normal_update();
-}
-
-
-// Main initialization function called once at program startup
-// Sets up the camera, 3D scene elements, and the image animation system
+// ============================================================
+// INITIALIZE
+// ============================================================
 void scene_structure::initialize()
 {
-	
-	std::cout << "Start function scene_structure::initialize()" << std::endl;
+    std::cout << "[Volcano] Initializing scene...\n";
 
-	// Set the behavior of the camera and its initial position
-	// ********************************************** //
-	camera_control.initialize(inputs, window); 
-	camera_control.set_rotation_axis_z(); // camera rotates around z-axis
-	//   look_at(camera_position, targeted_point, up_direction)
-	camera_control.look_at(
-		{ 5.0f, -4.0f, 3.5f } /* position of the camera in the 3D scene */,
-		{0,0,0} /* targeted point in 3D scene */,
-		{0,0,1} /* direction of the "up" vector */);
+    // Camera
+    camera_control.initialize(inputs, window);
+    camera_control.set_rotation_axis_z();
+    camera_control.look_at({20.0f, -12.0f, 12.0f}, {0, 0, 3}, {0, 0, 1});
 
-	camera_projection = camera_projection_perspective{
-		50.0f * Pi/180, // Field of view
-		1.0f,           // Aspect ratio
-		0.01f,          // Depth min
-		1000            // Depth max
-	};
+    camera_projection = camera_projection_perspective{
+        50.0f * Pi / 180.0f, 1.0f, 0.05f, 500.0f
+    };
 
+    // Background matches fog color
+    environment.background_color = fog_color;
 
-	// General information
-	display_info();
+    global_frame.initialize_data_on_gpu(mesh_primitive_frame());
 
-	// Create 3D coordinate frame (x, y, z axes) for visual reference
-	global_frame.initialize_data_on_gpu(mesh_primitive_frame());
+    // ---- Load shaders ----
+    shader_fog.load(project::path + "shaders/mesh_fog/mesh_fog.vert.glsl",
+                    project::path + "shaders/mesh_fog/mesh_fog.frag.glsl");
 
-	// Initialize the shapes of the scene
-	// ***************************************** //
+    shader_lava.load(project::path + "shaders/lava/lava.vert.glsl",
+                     project::path + "shaders/lava/lava.frag.glsl");
 
-	gui.display_frame = true;
+    shader_grass.load(project::path + "shaders/grass/grass.vert.glsl",
+                      project::path + "shaders/grass/grass.frag.glsl");
 
-float L = 5.0f;
-	mesh terrain_mesh = mesh_primitive_grid({ -L,-L,0 }, { L,-L,0 }, { L,L,0 }, { -L,L,0 }, 100, 100);
-	deform_terrain(terrain_mesh);
-	terrain.initialize_data_on_gpu(terrain_mesh);
-	terrain.texture.load_and_initialize_texture_2d_on_gpu(project::path + "assets/sand.jpg");
+    // ---- Terrain ----
+    terrain.initialize(shader_fog);
 
-	float sea_w = 8.0;
-	float sea_z = -0.8f;
-	water.initialize_data_on_gpu(mesh_primitive_grid({ -sea_w,-sea_w,sea_z }, { sea_w,-sea_w,sea_z }, { sea_w,sea_w,sea_z }, { -sea_w,sea_w,sea_z }));
-	water.texture.load_and_initialize_texture_2d_on_gpu(project::path + "assets/sea.png");
+    // Find crater summit (approximately at r=0)
+    float crater_z = terrain.evaluate_height(0.0f, 0.0f);
+    vec3 crater_pos = {0.0f, 0.0f, crater_z};
+    std::cout << "[Volcano] Crater z = " << crater_z << "\n";
 
-	tree.initialize_data_on_gpu(mesh_load_file_obj(project::path + "assets/palm_tree/palm_tree.obj"));
-	tree.model.rotation = rotation_transform::from_axis_angle({ 1,0,0 }, Pi / 2.0f);
-	tree.texture.load_and_initialize_texture_2d_on_gpu(project::path + "assets/palm_tree/palm_tree.jpg", GL_REPEAT, GL_REPEAT);
+    // ---- Lava pool at crater ----
+    {
+        int N = 50;
+        float r_pool = 2.2f;
+        mesh m;
+        // Center vertex
+        m.position.push_back({0.0f, 0.0f, crater_z + 0.05f});
+        m.uv.push_back({0.5f, 0.5f});
+        for (int i = 0; i < N; ++i) {
+            float theta = 2.0f * Pi * i / N;
+            float x = r_pool * std::cos(theta);
+            float y = r_pool * std::sin(theta);
+            float z = terrain.evaluate_height(x, y) + 0.05f;
+            m.position.push_back({x, y, z});
+            m.uv.push_back({0.5f + 0.5f * std::cos(theta),
+                            0.5f + 0.5f * std::sin(theta)});
+        }
+        for (int i = 0; i < N; ++i) {
+            int j = (i + 1) % N;
+            m.connectivity.push_back({0, (uint32_t)(i+1), (uint32_t)(j+1)});
+        }
+        m.normal_update();
+        m.fill_empty_field();
+        lava_pool.initialize_data_on_gpu(m);
+        lava_pool.shader = shader_lava;
+        lava_pool.material.phong.ambient  = 1.0f;
+        lava_pool.material.phong.diffuse  = 0.0f;
+        lava_pool.material.phong.specular = 0.0f;
+    }
 
-	cube1.initialize_data_on_gpu(mesh_primitive_cube({ 0,0,0 }, 0.5f));
-	cube1.model.rotation = rotation_transform::from_axis_angle({ -1,1,0 }, Pi / 7.0f);
-	cube1.model.translation = { 1.0f,1.0f,-0.1f };
-	cube1.texture.load_and_initialize_texture_2d_on_gpu(project::path + "assets/wood.jpg");
+    // ---- Lava particles ----
+    lava_system.initialize(crater_pos);
+    lava_system.emission_rate = emission_rate;
+    lava_system.velocity_scale = velocity_scale;
 
-	cube2 = cube1;
+    // ---- Smoke ----
+    smoke_system.initialize(crater_pos + vec3{0, 0, 0.3f});
+    smoke_system.emission_rate = smoke_rate;
 
-	std::cout << "End function scene_structure::initialize()" << std::endl;
+    // ---- Trees ----
+    trees.initialize(shader_fog, [this](float x, float y){
+        return terrain.evaluate_height(x, y);
+    });
+
+    // ---- Grass ----
+    grass.initialize(shader_grass, [this](float x, float y){
+        return terrain.evaluate_height(x, y);
+    });
+
+    std::cout << "[Volcano] Scene ready.\n";
 }
 
-
-
-
-// This function is called permanently at every new frame
-// Note that you should avoid having costly computation and large allocation defined there. This function is mostly used to call the draw() functions on pre-existing data.
+// ============================================================
+// DISPLAY FRAME
+// ============================================================
 void scene_structure::display_frame()
 {
-	// Set the light to the current position of the camera
     camera_projection.aspect_ratio = window.aspect_ratio();
-	environment.camera_projection = camera_projection.matrix();
-	environment.camera_view = camera_control.camera_model.matrix_view();
-	environment.light = camera_control.camera_model.position();
-	
+    environment.camera_projection   = camera_projection.matrix();
+    environment.camera_view         = camera_control.camera_model.matrix_view();
+    environment.light               = camera_control.camera_model.position();
 
-	// Draw the 3D reference frame axes if enabled
-	if (gui.display_frame)
-		draw(global_frame, environment);
+    if (gui.display_frame)
+        draw(global_frame, environment);
 
-	// Update time
-	timer.update();
+    // Advance animation time (timer.update() avoids large jumps on unpause)
+    float real_dt = timer.update();
+    if (!gui.pause_animation) {
+        anim_time += real_dt;
+        anim_dt    = real_dt;
+    } else {
+        anim_dt = 0.0f;
+    }
 
+    // Push fog + light + time uniforms for all shaders that need them
+    environment.uniform_generic.uniform_float["fog_distance"] = fog_distance;
+    environment.uniform_generic.uniform_vec3 ["fog_color"]    = fog_color;
+    environment.uniform_generic.uniform_float["time"]         = anim_time;
+    environment.uniform_generic.uniform_vec3 ["light_color"]  = light_color;
+    environment.uniform_generic.uniform_float["light_range"]  = light_range;
 
+    // Sync GUI parameters to systems
+    lava_system.emission_rate  = emission_rate;
+    lava_system.velocity_scale = velocity_scale;
+    smoke_system.emission_rate = smoke_rate;
 
-	// Draw all the shapes
-	draw(terrain, environment);
-	draw(water, environment);
-	draw(tree, environment);
-	draw(cube1, environment);
+    // ---- 1) Update simulations ----
+    lava_system.update(anim_time, anim_dt);
+    smoke_system.update(anim_time, anim_dt);
 
-	// Animate the second cube in the water
-	cube2.model.translation = { -1.0f, 6.0f+0.1*sin(0.5f*timer.t), -0.8f + 0.1f * cos(0.5f * timer.t)};
-	cube2.model.rotation = rotation_transform::from_axis_angle({1,-0.2,0},Pi/12.0f*sin(0.5f*timer.t));
-	draw(cube2, environment);
+    // ---- 2) Opaque objects ----
+    terrain.draw(environment, gui.display_wireframe);
+    trees.draw(environment, gui.display_wireframe);
 
-	if (gui.display_wireframe) {
-		draw_wireframe(terrain, environment);
-		draw_wireframe(water, environment);
-		draw_wireframe(tree, environment);
-		draw_wireframe(cube1, environment);
-		draw_wireframe(cube2, environment);
-	}
+    // ---- 3) Lava pool (emissive shader — suppress missing-uniform warnings) ----
+    draw(lava_pool, environment, 1, false);
 
+    // ---- 4) Lava particles (emissive spheres) ----
+    lava_system.draw(environment);
 
+    // ---- 5) Grass (discard-based transparency, no blending needed) ----
+    grass.draw(environment);
+
+    // ---- 6) Smoke (semi-transparent billboards — must be last + sorted) ----
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(GL_FALSE);
+
+    vec3 cam_pos = camera_control.camera_model.position();
+    smoke_system.draw(environment, cam_pos, environment.camera_view);
+
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
 }
 
-
+// ============================================================
+// GUI
+// ============================================================
 void scene_structure::display_gui()
 {
-	ImGui::Checkbox("Frame", &gui.display_frame);
-	ImGui::Checkbox("Wireframe", &gui.display_wireframe);
+    ImGui::Text("== Volcano Controls ==");
+    ImGui::Separator();
+
+    ImGui::Checkbox("Pause animation", &gui.pause_animation);
+    ImGui::Checkbox("Show frame",      &gui.display_frame);
+    ImGui::Checkbox("Wireframe",       &gui.display_wireframe);
+
+    ImGui::Separator();
+    ImGui::Text("Eruption");
+    ImGui::SliderFloat("Emission rate (part/s)", &emission_rate,  0.0f, 200.0f);
+    ImGui::SliderFloat("Lava velocity scale",    &velocity_scale, 0.2f,   3.0f);
+
+    if (ImGui::Button("BOOM ! Mega eruption")) {
+        lava_system.mega_eruption(timer.t);
+    }
+
+    ImGui::Separator();
+    ImGui::Text("Smoke");
+    ImGui::SliderFloat("Smoke rate (part/s)", &smoke_rate, 0.0f, 20.0f);
+
+    ImGui::Separator();
+    ImGui::Text("Terrain (Perlin)");
+    bool terrain_changed = false;
+    terrain_changed |= ImGui::SliderFloat("Frequency",   &terrain.perlin_frequency,   0.01f, 0.5f);
+    terrain_changed |= ImGui::SliderInt  ("Octaves",     &terrain.perlin_octaves,     1, 10);
+    terrain_changed |= ImGui::SliderFloat("Persistence", &terrain.perlin_persistence, 0.1f, 0.9f);
+    if (terrain_changed)
+        terrain.rebuild();
+
+    ImGui::Separator();
+    ImGui::Text("Light");
+    ImGui::ColorEdit3("Light color", &light_color.x);
+    ImGui::SliderFloat("Light range", &light_range, 5.0f, 150.0f);
+
+    ImGui::Separator();
+    ImGui::Text("Atmosphere");
+    ImGui::SliderFloat("Fog distance", &fog_distance, 5.0f, 80.0f);
+    ImGui::ColorEdit3("Fog color",     &fog_color.x);
+    // Keep background in sync with fog
+    environment.background_color = fog_color;
 }
 
-
-
-
+// ============================================================
+// CALLBACKS
+// ============================================================
 void scene_structure::mouse_move_event()
 {
-	if (!inputs.keyboard.shift)
-		camera_control.action_mouse_move();
-	
+    if (!inputs.keyboard.shift)
+        camera_control.action_mouse_move();
 }
-void scene_structure::mouse_click_event()
-{
-	camera_control.action_mouse_click();
-}
-void scene_structure::keyboard_event()
-{
-	camera_control.action_keyboard();
-}
-void scene_structure::idle_frame()
-{
-	camera_control.idle_frame();
-	
-}
+void scene_structure::mouse_click_event()  { camera_control.action_mouse_click(); }
+void scene_structure::keyboard_event()     { camera_control.action_keyboard(); }
+void scene_structure::idle_frame()         { camera_control.idle_frame(); }
 
 void scene_structure::display_info()
 {
-	std::cout << "\nCAMERA CONTROL:" << std::endl;
-	std::cout << "-----------------------------------------------" << std::endl;
-	std::cout << camera_control.doc_usage() << std::endl;
-	std::cout << "-----------------------------------------------\n" << std::endl;
-
-
-	std::cout << "\nSCENE INFO:" << std::endl;
-	std::cout << "-----------------------------------------------" << std::endl;
-	std::cout << "Example of scene to start a project." << std::endl;
-	std::cout << "-----------------------------------------------\n" << std::endl;
+    std::cout << "\nCAMERA CONTROL:\n";
+    std::cout << "-----------------------------------------------\n";
+    std::cout << camera_control.doc_usage() << "\n";
+    std::cout << "-----------------------------------------------\n";
+    std::cout << "\nSCENE: Volcano eruption\n";
+    std::cout << "  Drag mouse to rotate, scroll to zoom\n";
+    std::cout << "  GUI sliders: tweak emission, smoke, fog\n";
+    std::cout << "  BOOM button: mega eruption!\n\n";
 }

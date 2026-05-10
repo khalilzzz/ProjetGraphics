@@ -613,6 +613,18 @@
 },
 {
   "directory": "/home/khali/csc43043ep-lab-code-main/08_project/build/relwithdebinfo",
+  "command": "/usr/bin/c++ -DCGP_ERROR_EXCEPTION -DCGP_OPENGL_3_3 -DIMGUI_IMPL_OPENGL_LOADER_GLAD -DSOLUTION -I/home/khali/csc43043ep-lab-code-main/08_project -I/home/khali/csc43043ep-lab-code-main/08_project/src -I/home/khali/csc43043ep-lab-code-main/08_project/cgp -O2 -g -DNDEBUG -std=c++17 -Wall -Wextra -pedantic -Wfatal-errors -Wno-pragmas -Wno-unknown-warning-option -Wno-sign-compare -Wno-type-limits -o CMakeFiles/project.dir/src/grass.cpp.o -c /home/khali/csc43043ep-lab-code-main/08_project/src/grass.cpp",
+  "file": "/home/khali/csc43043ep-lab-code-main/08_project/src/grass.cpp",
+  "output": "CMakeFiles/project.dir/src/grass.cpp.o"
+},
+{
+  "directory": "/home/khali/csc43043ep-lab-code-main/08_project/build/relwithdebinfo",
+  "command": "/usr/bin/c++ -DCGP_ERROR_EXCEPTION -DCGP_OPENGL_3_3 -DIMGUI_IMPL_OPENGL_LOADER_GLAD -DSOLUTION -I/home/khali/csc43043ep-lab-code-main/08_project -I/home/khali/csc43043ep-lab-code-main/08_project/src -I/home/khali/csc43043ep-lab-code-main/08_project/cgp -O2 -g -DNDEBUG -std=c++17 -Wall -Wextra -pedantic -Wfatal-errors -Wno-pragmas -Wno-unknown-warning-option -Wno-sign-compare -Wno-type-limits -o CMakeFiles/project.dir/src/lava_particles.cpp.o -c /home/khali/csc43043ep-lab-code-main/08_project/src/lava_particles.cpp",
+  "file": "/home/khali/csc43043ep-lab-code-main/08_project/src/lava_particles.cpp",
+  "output": "CMakeFiles/project.dir/src/lava_particles.cpp.o"
+},
+{
+  "directory": "/home/khali/csc43043ep-lab-code-main/08_project/build/relwithdebinfo",
   "command": "/usr/bin/c++ -DCGP_ERROR_EXCEPTION -DCGP_OPENGL_3_3 -DIMGUI_IMPL_OPENGL_LOADER_GLAD -DSOLUTION -I/home/khali/csc43043ep-lab-code-main/08_project -I/home/khali/csc43043ep-lab-code-main/08_project/src -I/home/khali/csc43043ep-lab-code-main/08_project/cgp -O2 -g -DNDEBUG -std=c++17 -Wall -Wextra -pedantic -Wfatal-errors -Wno-pragmas -Wno-unknown-warning-option -Wno-sign-compare -Wno-type-limits -o CMakeFiles/project.dir/src/main.cpp.o -c /home/khali/csc43043ep-lab-code-main/08_project/src/main.cpp",
   "file": "/home/khali/csc43043ep-lab-code-main/08_project/src/main.cpp",
   "output": "CMakeFiles/project.dir/src/main.cpp.o"
@@ -622,5 +634,23 @@
   "command": "/usr/bin/c++ -DCGP_ERROR_EXCEPTION -DCGP_OPENGL_3_3 -DIMGUI_IMPL_OPENGL_LOADER_GLAD -DSOLUTION -I/home/khali/csc43043ep-lab-code-main/08_project -I/home/khali/csc43043ep-lab-code-main/08_project/src -I/home/khali/csc43043ep-lab-code-main/08_project/cgp -O2 -g -DNDEBUG -std=c++17 -Wall -Wextra -pedantic -Wfatal-errors -Wno-pragmas -Wno-unknown-warning-option -Wno-sign-compare -Wno-type-limits -o CMakeFiles/project.dir/src/scene.cpp.o -c /home/khali/csc43043ep-lab-code-main/08_project/src/scene.cpp",
   "file": "/home/khali/csc43043ep-lab-code-main/08_project/src/scene.cpp",
   "output": "CMakeFiles/project.dir/src/scene.cpp.o"
+},
+{
+  "directory": "/home/khali/csc43043ep-lab-code-main/08_project/build/relwithdebinfo",
+  "command": "/usr/bin/c++ -DCGP_ERROR_EXCEPTION -DCGP_OPENGL_3_3 -DIMGUI_IMPL_OPENGL_LOADER_GLAD -DSOLUTION -I/home/khali/csc43043ep-lab-code-main/08_project -I/home/khali/csc43043ep-lab-code-main/08_project/src -I/home/khali/csc43043ep-lab-code-main/08_project/cgp -O2 -g -DNDEBUG -std=c++17 -Wall -Wextra -pedantic -Wfatal-errors -Wno-pragmas -Wno-unknown-warning-option -Wno-sign-compare -Wno-type-limits -o CMakeFiles/project.dir/src/smoke.cpp.o -c /home/khali/csc43043ep-lab-code-main/08_project/src/smoke.cpp",
+  "file": "/home/khali/csc43043ep-lab-code-main/08_project/src/smoke.cpp",
+  "output": "CMakeFiles/project.dir/src/smoke.cpp.o"
+},
+{
+  "directory": "/home/khali/csc43043ep-lab-code-main/08_project/build/relwithdebinfo",
+  "command": "/usr/bin/c++ -DCGP_ERROR_EXCEPTION -DCGP_OPENGL_3_3 -DIMGUI_IMPL_OPENGL_LOADER_GLAD -DSOLUTION -I/home/khali/csc43043ep-lab-code-main/08_project -I/home/khali/csc43043ep-lab-code-main/08_project/src -I/home/khali/csc43043ep-lab-code-main/08_project/cgp -O2 -g -DNDEBUG -std=c++17 -Wall -Wextra -pedantic -Wfatal-errors -Wno-pragmas -Wno-unknown-warning-option -Wno-sign-compare -Wno-type-limits -o CMakeFiles/project.dir/src/terrain.cpp.o -c /home/khali/csc43043ep-lab-code-main/08_project/src/terrain.cpp",
+  "file": "/home/khali/csc43043ep-lab-code-main/08_project/src/terrain.cpp",
+  "output": "CMakeFiles/project.dir/src/terrain.cpp.o"
+},
+{
+  "directory": "/home/khali/csc43043ep-lab-code-main/08_project/build/relwithdebinfo",
+  "command": "/usr/bin/c++ -DCGP_ERROR_EXCEPTION -DCGP_OPENGL_3_3 -DIMGUI_IMPL_OPENGL_LOADER_GLAD -DSOLUTION -I/home/khali/csc43043ep-lab-code-main/08_project -I/home/khali/csc43043ep-lab-code-main/08_project/src -I/home/khali/csc43043ep-lab-code-main/08_project/cgp -O2 -g -DNDEBUG -std=c++17 -Wall -Wextra -pedantic -Wfatal-errors -Wno-pragmas -Wno-unknown-warning-option -Wno-sign-compare -Wno-type-limits -o CMakeFiles/project.dir/src/tree.cpp.o -c /home/khali/csc43043ep-lab-code-main/08_project/src/tree.cpp",
+  "file": "/home/khali/csc43043ep-lab-code-main/08_project/src/tree.cpp",
+  "output": "CMakeFiles/project.dir/src/tree.cpp.o"
 }
 ]

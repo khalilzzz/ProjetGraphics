@@ -1,86 +1,73 @@
 #pragma once
 
-
 #include "cgp/cgp.hpp"
-
 #include "environment.hpp"
+#include "terrain.hpp"
+#include "lava_particles.hpp"
+#include "smoke.hpp"
+#include "tree.hpp"
+#include "grass.hpp"
 
 using cgp::mesh_drawable;
 
-
-
 struct gui_parameters {
-	bool display_frame = false;
-	bool display_wireframe = false;
+    bool display_frame     = false;
+    bool display_wireframe = false;
+    bool pause_animation   = false;
 };
 
-
-
-// The structure of the custom scene
 struct scene_structure : cgp::scene_inputs_generic {
-	
-	// ****************************** //
-	// Standard Functions
-	// ****************************** //
 
-	void initialize();  // Standard initialization to be called before the animation loop
-	void display_frame();     // The frame display to be called within the animation loop
-	void display_gui(); // The display of the GUI, also called within the animation loop
+    // *** Standard CGP boilerplate ***
+    void initialize();
+    void display_frame();
+    void display_gui();
 
-	// ****************************** //
-	// Context
-	// ****************************** //
+    environment_structure environment;
+    window_structure      window;
+    input_devices         inputs;
+    gui_parameters        gui;
 
-	// Environment controller (background color, )
-	environment_structure environment; 
-	// Window where the scene is displayed
-	window_structure window; 
-	// Storage for inputs status (mouse, keyboard, window dimension)
-	input_devices inputs; 
-	// Standard GUI element storage
-	gui_parameters gui; 
+    void display_info();
 
-	// Display information at the start of the program
-	void display_info();
+    cgp::camera_controller_orbit_euler camera_control;
+    cgp::camera_projection_perspective  camera_projection;
 
-	// ****************************** //
-	// Camera controller
-	// ****************************** //
+    // *** Scene elements ***
+    cgp::mesh_drawable global_frame;
+    cgp::timer_basic   timer;
 
-	// Controller of the camera (extrinsic parameters: position/orientation) -- to be adapted to the desired model and behavior
-	camera_controller_orbit_euler camera_control; 
+    terrain_structure        terrain;
+    lava_particles_structure lava_system;
+    smoke_structure          smoke_system;
+    tree_structure           trees;
+    grass_structure          grass;
 
-	// The model of camera projection (intrinsic parameters)
-	camera_projection_perspective camera_projection;
+    cgp::mesh_drawable lava_pool;   // animated lava surface at crater
 
-	
-	
-	// ****************************** //
-	// Elements and shapes of the scene
-	// ****************************** //
+    // *** Shaders ***
+    cgp::opengl_shader_structure shader_fog;
+    cgp::opengl_shader_structure shader_lava;
+    cgp::opengl_shader_structure shader_grass;
 
-	mesh_drawable global_frame;          // The standard global frame
+    // *** Animation time (controlled manually so pause works) ***
+    float anim_time = 0.0f;
+    float anim_dt   = 0.0f;
 
-	timer_basic timer;
+    // *** GUI-controlled parameters ***
+    float emission_rate   = 60.0f;
+    float velocity_scale  = 1.0f;
+    float smoke_rate      = 4.0f;
+    float fog_distance    = 30.0f;
+    cgp::vec3 fog_color   = {0.55f, 0.45f, 0.40f};
 
-	mesh_drawable terrain;
-	mesh_drawable water;
-	mesh_drawable tree;
-	mesh_drawable cube1;
-	mesh_drawable cube2;
+    // Light
+    cgp::vec3 light_color = {1.0f, 1.0f, 1.0f};
+    float     light_range = 60.0f;
 
-
-	// ****************************** //
-	// Callback functions
-	// ****************************** //
-	void mouse_move_event();
-	void mouse_click_event();
-	void keyboard_event();
-	void idle_frame();
-
+    // *** Callbacks ***
+    void mouse_move_event();
+    void mouse_click_event();
+    void keyboard_event();
+    void idle_frame();
 };
-
-
-
-
-
