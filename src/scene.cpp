@@ -73,7 +73,7 @@ void scene_structure::initialize()
     }
 
     // ---- Lava particles ----
-    lava_system.initialize(crater_pos);
+    lava_system.initialize(crater_pos, shader_fog);
     lava_system.emission_rate = emission_rate;
     lava_system.velocity_scale = velocity_scale;
 

@@ -12,6 +12,11 @@ layout(location=0) out vec4 FragColor;
 uniform sampler2D image_texture;
 uniform mat4 view;
 uniform vec3 light;
+uniform vec3  light_color;
+uniform float light_range;
+
+uniform float fog_distance;
+uniform vec3  fog_color;
 
 struct phong_structure {
     float ambient;
@@ -48,13 +53,23 @@ void main()
     vec3 N = normalize(fragment.normal);
     if (gl_FrontFacing == false) N = -N;
 
-    vec3 L = normalize(light - fragment.position);
-    float diffuse_component = max(dot(N, L), 0.0);
+    vec3 L_vec = light - fragment.position;
+    float light_dist = length(L_vec);
+    vec3 L = normalize(L_vec);
+    float attenuation = clamp(1.0 - light_dist / light_range, 0.0, 1.0);
+
+    float diffuse_component = max(dot(N, L), 0.0) * attenuation;
 
     vec3 color_object = fragment.color * material.color * color_image_texture.rgb;
     float Ka = material.phong.ambient;
     float Kd = material.phong.diffuse;
-    vec3 color_shading = (Ka + Kd * diffuse_component) * color_object;
+    vec3 color_shading = (Ka * color_object)
+                       + (Kd * diffuse_component) * color_object * light_color;
 
-    FragColor = vec4(color_shading, 1.0);
+    // Fog
+    float d = length(fragment.position - camera_position);
+    float alpha_fog = clamp(d / fog_distance, 0.0, 1.0);
+    vec3 final_color = mix(color_shading, fog_color, alpha_fog);
+
+    FragColor = vec4(final_color, material.alpha * color_image_texture.a);
 }

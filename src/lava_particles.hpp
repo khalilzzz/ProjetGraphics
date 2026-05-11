@@ -19,7 +19,7 @@ struct lava_particles_structure {
     float velocity_scale  = 1.0f;   // multiplier on initial upward speed
     float time_accum      = 0.0f;
 
-    void initialize(cgp::vec3 const& emitter_pos);
+    void initialize(cgp::vec3 const& emitter_pos, cgp::opengl_shader_structure const& shader);
     void emit(float t);
     void update(float t, float dt);
     void draw(environment_structure const& env);

@@ -62,6 +62,7 @@ void terrain_structure::rebuild()
     }
     m.normal_update();
 
+    drawable.clear();
     drawable.initialize_data_on_gpu(m);
     drawable.texture  = saved_texture;
     drawable.material = saved_material;

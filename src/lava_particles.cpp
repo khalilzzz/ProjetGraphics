@@ -3,17 +3,18 @@ using namespace cgp;
 
 static const vec3 GRAVITY = {0, 0, -9.81f};
 
-void lava_particles_structure::initialize(vec3 const& emitter_pos)
+void lava_particles_structure::initialize(vec3 const& emitter_pos, opengl_shader_structure const& shader)
 {
     emitter = emitter_pos;
     particles.resize(800);
 
     sphere.initialize_data_on_gpu(mesh_primitive_sphere(1.0f));
+    sphere.shader = shader;
     sphere.texture.load_and_initialize_texture_2d_on_gpu(
         project::path + "assets/lava.png", GL_REPEAT, GL_REPEAT);
     sphere.material.color          = {1.0f, 0.55f, 0.1f};
-    sphere.material.phong.ambient  = 0.95f;
-    sphere.material.phong.diffuse  = 0.05f;
+    sphere.material.phong.ambient  = 0.7f;
+    sphere.material.phong.diffuse  = 0.3f;
     sphere.material.phong.specular = 0.0f;
 }
 
