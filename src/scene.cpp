@@ -43,26 +43,50 @@ void scene_structure::initialize()
     std::cout << "[Volcano] Crater z = " << crater_z << "\n";
 
     // ---- Lava pool at crater ----
+    // Multi-ring grid so each vertex samples the real terrain height — avoids
+    // the lava mesh floating above the volcano where Perlin bumps the terrain.
     {
-        int N = 50;
-        float r_pool = 2.2f;
+        int N = 60;
+        std::vector<float> radii = {0.0f, 0.55f, 1.1f, 1.65f, 2.2f};
+        float offset = 0.12f;  // push above terrain to avoid z-fighting
         mesh m;
+
         // Center vertex
-        m.position.push_back({0.0f, 0.0f, crater_z + 0.05f});
+        m.position.push_back({0.0f, 0.0f, terrain.evaluate_height(0.0f, 0.0f) + offset});
         m.uv.push_back({0.5f, 0.5f});
-        for (int i = 0; i < N; ++i) {
-            float theta = 2.0f * Pi * i / N;
-            float x = r_pool * std::cos(theta);
-            float y = r_pool * std::sin(theta);
-            float z = terrain.evaluate_height(x, y) + 0.05f;
-            m.position.push_back({x, y, z});
-            m.uv.push_back({0.5f + 0.5f * std::cos(theta),
-                            0.5f + 0.5f * std::sin(theta)});
+
+        for (int ri = 1; ri < (int)radii.size(); ++ri) {
+            float r = radii[ri];
+            for (int i = 0; i < N; ++i) {
+                float theta = 2.0f * Pi * i / N;
+                float x = r * std::cos(theta);
+                float y = r * std::sin(theta);
+                float z = terrain.evaluate_height(x, y) + offset;
+                m.position.push_back({x, y, z});
+                float u = 0.5f + 0.5f * (r / radii.back()) * std::cos(theta);
+                float v = 0.5f + 0.5f * (r / radii.back()) * std::sin(theta);
+                m.uv.push_back({u, v});
+            }
         }
+
+        // Center fan (ring 0 → ring 1)
         for (int i = 0; i < N; ++i) {
             int j = (i + 1) % N;
-            m.connectivity.push_back({0, (uint32_t)(i+1), (uint32_t)(j+1)});
+            m.connectivity.push_back({0,
+                (uint32_t)(1 + i),
+                (uint32_t)(1 + j)});
         }
+        // Quads between consecutive rings
+        for (int ri = 0; ri < (int)radii.size() - 2; ++ri) {
+            uint32_t base_inner = 1 + ri * N;
+            uint32_t base_outer = 1 + (ri + 1) * N;
+            for (int i = 0; i < N; ++i) {
+                int j = (i + 1) % N;
+                m.connectivity.push_back({base_inner + i, base_outer + i, base_outer + j});
+                m.connectivity.push_back({base_inner + i, base_outer + j, base_inner + j});
+            }
+        }
+
         m.normal_update();
         m.fill_empty_field();
         lava_pool.initialize_data_on_gpu(m);
@@ -75,20 +99,30 @@ void scene_structure::initialize()
     // ---- Skybox ----
     {
         image_structure image_skybox_template = image_load_file(project::path + "assets/cubemap.png");
+        // image_split_grid(img, 4, 3): index = kv + 3*kh (column-major, kh=col, kv=row)
+        //   [0]=empty  [3]=sky   [6]=empty  [9]=empty
+        //   [1]=left   [4]=front [7]=right  [10]=back
+        //   [2]=empty  [5]=bot   [8]=empty  [11]=empty
         std::vector<image_structure> image_grid = image_split_grid(image_skybox_template, 4, 3);
-        // Column-major indices (kv + 3*kh):
-        //   Row 0: [0]    [3]=sky  [6]     [9]
-        //   Row 1: [1]=L  [4]=fire [7]=R   [10]=back
-        //   Row 2: [2]    [5]=bot  [8]     [11]
-        // CGP is Z-up: +Z=sky → z_pos, -Z=ground → z_neg
         skybox.initialize_data_on_gpu();
+        // Same mapping as the TD reference (image was authored for Y-up convention)
         skybox.texture.initialize_cubemap_on_gpu(
             image_grid[1],   // x_neg : left
             image_grid[7],   // x_pos : right
-            image_grid[10],  // y_neg : back
-            image_grid[4],   // y_pos : front (fire/sun)
-            image_grid[5],   // z_neg : bottom/ground
-            image_grid[3]    // z_pos : sky/top
+            image_grid[5],   // y_neg : bottom/ground
+            image_grid[3],   // y_pos : sky/top
+            image_grid[10],  // z_neg : back
+            image_grid[4]    // z_pos : front (sun)
+        );
+        // The image was designed for Y-up convention, but the scene uses Z-up.
+        // Apply a -90° rotation around X to map Z-up sampling directions to Y-up:
+        //   world (0,0,+1) [sky]     → samples (0,+1, 0) → GL_POSITIVE_Y = sky  ✓
+        //   world (0,0,-1) [ground]  → samples (0,-1, 0) → GL_NEGATIVE_Y = bot  ✓
+        //   world (±1,0,0) [sides]   → unchanged                                  ✓
+        skybox.skybox_rotation = mat3(
+            1.0f,  0.0f,  0.0f,
+            0.0f,  0.0f,  1.0f,
+            0.0f, -1.0f,  0.0f
         );
     }
 
@@ -227,6 +261,12 @@ void scene_structure::display_gui()
     ImGui::ColorEdit3("Fog color",     &fog_color.x);
     // Keep background in sync with fog
     environment.background_color = fog_color;
+
+    ImGui::Separator();
+    ImGui::Text("Camera");
+    float fov_deg = camera_projection.field_of_view * 180.0f / Pi;
+    if (ImGui::SliderFloat("Field of view (deg)", &fov_deg, 10.0f, 120.0f))
+        camera_projection.field_of_view = fov_deg * Pi / 180.0f;
 }
 
 // ============================================================

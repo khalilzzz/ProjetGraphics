@@ -40,7 +40,7 @@ void tree_structure::initialize(opengl_shader_structure const &shader,
         positions.push_back({x, y, z});
         float angle = rand_uniform(0.0f, 2.0f * Pi);
         rotations.push_back(rotation_transform::from_axis_angle({0, 0, 1}, angle));
-        scalings.push_back(rand_uniform(0.4f, 0.9f));
+        scalings.push_back(rand_uniform(0.8f, 1.5f));
         ++count;
     }
 }
