@@ -515,4 +515,12 @@ Une fois la base solide, tu peux ajouter :
 | Illumination de Phong (et désactivation pour émissif) | Section 2.x du cours | Partout (terrain/arbres) vs Phase 2/3 (lava) |
 | Instanciation visuelle (même mesh, plusieurs translations) | Section 4.4, figure 21 | Phase 5 (arbres), Phase 6 (herbe) |
 
-Tu vois que ton projet « cocher » à peu près toute la liste — c'est exactement ce qu'on attend d'un projet final.
+
+
+
+
+
+
+
+
+

@@ -33,8 +33,8 @@ void terrain_structure::initialize(opengl_shader_structure const &shader)
 
     drawable.initialize_data_on_gpu(m);
     drawable.texture.load_and_initialize_texture_2d_on_gpu(
-        project::path + "assets/ground_rock.png", GL_REPEAT, GL_REPEAT);
-    drawable.material.color = {0.30f, 0.18f, 0.12f};
+        project::path + "assets/rock3.png", GL_REPEAT, GL_REPEAT);
+    drawable.material.color = {1.0f, 1.0f, 1.0f};
     drawable.material.phong.ambient = 0.4f;
     drawable.material.phong.diffuse = 0.6f;
     drawable.material.phong.specular = 0.05f;
@@ -44,7 +44,7 @@ void terrain_structure::initialize(opengl_shader_structure const &shader)
 void terrain_structure::rebuild()
 {
     // Preserve GPU state that initialize_data_on_gpu would reset
-    auto saved_texture  = drawable.texture;
+    auto saved_texture = drawable.texture;
     auto saved_material = drawable.material;
 
     int N = grid_size;
@@ -64,9 +64,9 @@ void terrain_structure::rebuild()
 
     drawable.clear();
     drawable.initialize_data_on_gpu(m);
-    drawable.texture  = saved_texture;
+    drawable.texture = saved_texture;
     drawable.material = saved_material;
-    drawable.shader   = saved_shader;
+    drawable.shader = saved_shader;
 }
 
 void terrain_structure::draw(environment_structure const &env, bool wireframe)

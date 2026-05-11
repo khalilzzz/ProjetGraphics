@@ -44,6 +44,7 @@ struct scene_structure : cgp::scene_inputs_generic {
     grass_structure          grass;
 
     cgp::mesh_drawable lava_pool;   // animated lava surface at crater
+    cgp::skybox_drawable skybox;
 
     // *** Shaders ***
     cgp::opengl_shader_structure shader_fog;

@@ -72,6 +72,26 @@ void scene_structure::initialize()
         lava_pool.material.phong.specular = 0.0f;
     }
 
+    // ---- Skybox ----
+    {
+        image_structure image_skybox_template = image_load_file(project::path + "assets/cubemap.png");
+        std::vector<image_structure> image_grid = image_split_grid(image_skybox_template, 4, 3);
+        // Column-major indices (kv + 3*kh):
+        //   Row 0: [0]    [3]=sky  [6]     [9]
+        //   Row 1: [1]=L  [4]=fire [7]=R   [10]=back
+        //   Row 2: [2]    [5]=bot  [8]     [11]
+        // CGP is Z-up: +Z=sky → z_pos, -Z=ground → z_neg
+        skybox.initialize_data_on_gpu();
+        skybox.texture.initialize_cubemap_on_gpu(
+            image_grid[1],   // x_neg : left
+            image_grid[7],   // x_pos : right
+            image_grid[10],  // y_neg : back
+            image_grid[4],   // y_pos : front (fire/sun)
+            image_grid[5],   // z_neg : bottom/ground
+            image_grid[3]    // z_pos : sky/top
+        );
+    }
+
     // ---- Lava particles ----
     lava_system.initialize(crater_pos, shader_fog);
     lava_system.emission_rate = emission_rate;
@@ -106,6 +126,11 @@ void scene_structure::display_frame()
 
     if (gui.display_frame)
         draw(global_frame, environment);
+
+    // Skybox — drawn first, no depth writes so it stays behind everything
+    glDepthMask(GL_FALSE);
+    draw(skybox, environment);
+    glDepthMask(GL_TRUE);
 
     // Advance animation time (timer.update() avoids large jumps on unpause)
     float real_dt = timer.update();
