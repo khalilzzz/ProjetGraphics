@@ -29,7 +29,7 @@ void tree_structure::initialize(opengl_shader_structure const &shader,
 
     // Place 350 trees in a ring around the volcano
     int count = 0;
-    while (count < 350)
+    while (count < 400)
     {
         float x = rand_uniform(-20.0f, 20.0f);
         float y = rand_uniform(-20.0f, 20.0f);
