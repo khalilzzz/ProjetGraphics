@@ -15,9 +15,9 @@ struct lava_particles_structure {
     cgp::mesh_drawable sphere;
     cgp::vec3 emitter;
 
-    float emission_rate   = 60.0f;  // particles / second
-    float velocity_scale  = 1.0f;   // multiplier on initial upward speed
-    float time_accum      = 0.0f;
+    float emission_rate   = 60.0f;  /* taux d'emission en particules par seconde */
+    float velocity_scale  = 1.0f;   /* facteur applique a la vitesse verticale initiale */
+    float time_accum      = 0.0f;   /* accumulateur pour decorreler l'emission du framerate */
 
     void initialize(cgp::vec3 const& emitter_pos, cgp::opengl_shader_structure const& shader);
     void emit(float t);

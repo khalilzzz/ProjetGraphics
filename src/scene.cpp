@@ -3,14 +3,11 @@
 
 using namespace cgp;
 
-// ============================================================
-// INITIALIZE
-// ============================================================
 void scene_structure::initialize()
 {
     std::cout << "[Volcano] Initializing scene...\n";
 
-    // Camera
+    /* mise en place de la caméra orbitale et du frustum perspective de la scène */
     camera_control.initialize(inputs, window);
     camera_control.set_rotation_axis_z();
     camera_control.look_at({20.0f, -12.0f, 12.0f}, {0, 0, 3}, {0, 0, 1});
@@ -18,12 +15,12 @@ void scene_structure::initialize()
     camera_projection = camera_projection_perspective{
         50.0f * Pi / 180.0f, 1.0f, 0.05f, 500.0f};
 
-    // Background matches fog color
+    /* on aligne la couleur de fond sur la couleur du brouillard pour eviter une demarcation a l'horizon */
     environment.background_color = fog_color;
 
     global_frame.initialize_data_on_gpu(mesh_primitive_frame());
 
-    // ---- Load shaders ----
+    /* chargement des trois shaders custom utilises dans la scene */
     shader_fog.load(project::path + "shaders/mesh_fog/mesh_fog.vert.glsl",
                     project::path + "shaders/mesh_fog/mesh_fog.frag.glsl");
 
@@ -33,24 +30,22 @@ void scene_structure::initialize()
     shader_grass.load(project::path + "shaders/grass/grass.vert.glsl",
                       project::path + "shaders/grass/grass.frag.glsl");
 
-    // ---- Terrain ----
     terrain.initialize(shader_fog);
 
-    // Find crater summit (approximately at r=0)
+    /* on releve la hauteur exacte du sommet du cratere pour positionner l'emetteur de lave et de fumee */
     float crater_z = terrain.evaluate_height(0.0f, 0.0f);
     vec3 crater_pos = {0.0f, 0.0f, crater_z};
     std::cout << "[Volcano] Crater z = " << crater_z << "\n";
 
-    // ---- Lava pool at crater ----
-    // Multi-ring grid so each vertex samples the real terrain height — avoids
-    // the lava mesh floating above the volcano where Perlin bumps the terrain.
+    /* nappe de lave du cratere : on construit un maillage en anneaux concentriques dont chaque sommet
+       echantillonne evaluate_height, pour que la surface epouse exactement le terrain au lieu de flotter */
     {
         int N = 60;
         std::vector<float> radii = {0.0f, 0.55f, 1.1f, 1.65f, 2.2f};
-        float offset = 0.12f; // push above terrain to avoid z-fighting
+        float offset = 0.12f; /* leger decalage vertical pour eviter le z-fighting avec le terrain */
         mesh m;
 
-        // Center vertex
+        /* sommet central de l'eventail, puis on parcourt chaque anneau pour generer les sommets */
         m.position.push_back({0.0f, 0.0f, terrain.evaluate_height(0.0f, 0.0f) + offset});
         m.uv.push_back({0.5f, 0.5f});
 
@@ -70,7 +65,7 @@ void scene_structure::initialize()
             }
         }
 
-        // Center fan (ring 0 → ring 1)
+        /* triangles de l'eventail central reliant le sommet (0) au premier anneau */
         for (int i = 0; i < N; ++i)
         {
             int j = (i + 1) % N;
@@ -78,7 +73,7 @@ void scene_structure::initialize()
                                       (uint32_t)(1 + i),
                                       (uint32_t)(1 + j)});
         }
-        // Quads between consecutive rings
+        /* quads (decoupes en deux triangles) entre chaque paire d'anneaux successifs */
         for (int ri = 0; ri < (int)radii.size() - 2; ++ri)
         {
             uint32_t base_inner = 1 + ri * N;
@@ -100,58 +95,46 @@ void scene_structure::initialize()
         lava_pool.material.phong.specular = 0.0f;
     }
 
-    // --- Skybox ---
+    /* skybox : on decoupe l'image cubemap.png en 12 tuiles dans une grille 4x3, puis on assigne
+       chaque tuile a une face du cubemap, et on applique une rotation pour passer de la convention
+       Y-up de l'image source a la convention Z-up de la scene. (mapping et rotation : aide IA) */
     {
         image_structure image_skybox_template = image_load_file(project::path + "assets/cubemap.png");
-        // image_split_grid(img, 4, 3): index = kv + 3*kh (column-major, kh=col, kv=row)
-        //   [0]=empty  [3]=sky   [6]=empty  [9]=empty
-        //   [1]=left   [4]=front [7]=right  [10]=back
-        //   [2]=empty  [5]=bot   [8]=empty  [11]=empty
         std::vector<image_structure> image_grid = image_split_grid(image_skybox_template, 4, 3);
         skybox.initialize_data_on_gpu();
-        // Same mapping as the TD reference (image was authored for Y-up convention)
         skybox.texture.initialize_cubemap_on_gpu(
-            image_grid[1],  // x_neg : left
-            image_grid[7],  // x_pos : right
-            image_grid[5],  // y_neg : bottom/ground
-            image_grid[3],  // y_pos : sky/top
-            image_grid[10], // z_neg : back
-            image_grid[4]   // z_pos : front (sun)
+            image_grid[1],  /* x_neg : gauche */
+            image_grid[7],  /* x_pos : droite */
+            image_grid[5],  /* y_neg : sol */
+            image_grid[3],  /* y_pos : ciel */
+            image_grid[10], /* z_neg : arriere */
+            image_grid[4]   /* z_pos : avant (soleil) */
         );
-        // The image was designed for Y-up convention, but the scene uses Z-up.
-        // Apply a -90° rotation around X to map Z-up sampling directions to Y-up:
-        //   world (0,0,+1) [sky]     → samples (0,+1, 0) → GL_POSITIVE_Y = sky  ✓
-        //   world (0,0,-1) [ground]  → samples (0,-1, 0) → GL_NEGATIVE_Y = bot  ✓
-        //   world (±1,0,0) [sides]   → unchanged                                  ✓
         skybox.skybox_rotation = mat3(
             1.0f, 0.0f, 0.0f,
             0.0f, 0.0f, 1.0f,
             0.0f, -1.0f, 0.0f);
     }
 
-    // ---- Lava particles ----
+    /* initialisation des systemes de particules de lave et de fumee a la position du cratere */
     lava_system.initialize(crater_pos, shader_fog);
     lava_system.emission_rate = emission_rate;
     lava_system.velocity_scale = velocity_scale;
 
-    // ---- Smoke ----
     smoke_system.initialize(crater_pos + vec3{0, 0, 0.3f});
     smoke_system.emission_rate = smoke_rate;
 
-    // ---- Trees ----
+    /* on passe a chaque systeme une fonction qui evalue la hauteur du terrain
+       pour qu'arbres et herbe soient places exactement sur le sol */
     trees.initialize(shader_fog, [this](float x, float y)
                      { return terrain.evaluate_height(x, y); });
 
-    // ---- Grass ----
     grass.initialize(shader_grass, [this](float x, float y)
                      { return terrain.evaluate_height(x, y); });
 
     std::cout << "[Volcano] Scene ready.\n";
 }
 
-// ============================================================
-// DISPLAY FRAME
-// ============================================================
 void scene_structure::display_frame()
 {
     camera_projection.aspect_ratio = window.aspect_ratio();
@@ -162,12 +145,14 @@ void scene_structure::display_frame()
     if (gui.display_frame)
         draw(global_frame, environment);
 
-    // Skybox — drawn first, no depth writes so it stays behind everything
+    /* la skybox est dessinee en premier avec depth mask off : ainsi sa profondeur
+       n'est jamais ecrite et tous les autres objets passent devant naturellement */
     glDepthMask(GL_FALSE);
     draw(skybox, environment);
     glDepthMask(GL_TRUE);
 
-    // Advance animation time (timer.update() avoids large jumps on unpause)
+    /* on avance manuellement le temps d'animation pour que la pause stoppe les particules
+       (timer.update() est appele dans tous les cas pour garder dt coherent quand on reprend) */
     float real_dt = timer.update();
     if (!gui.pause_animation)
     {
@@ -179,53 +164,55 @@ void scene_structure::display_frame()
         anim_dt = 0.0f;
     }
 
-    // Push fog + light + time uniforms for all shaders that need them
+    /* on pousse tous les uniforms partages (fog, lumiere, temps) une seule fois par frame */
     environment.uniform_generic.uniform_float["fog_distance"] = fog_distance;
     environment.uniform_generic.uniform_vec3["fog_color"] = fog_color;
     environment.uniform_generic.uniform_float["time"] = anim_time;
     environment.uniform_generic.uniform_vec3["light_color"] = light_color;
     environment.uniform_generic.uniform_float["light_range"] = light_range;
+    /* la position de la camera est constante pour toute la frame : on la calcule une fois cote C++
+       et on la pousse en uniform plutot que de la reconstruire dans chaque fragment a partir de la vue */
+    vec3 cam_pos = camera_control.camera_model.position();
+    environment.uniform_generic.uniform_vec3["camera_position"] = cam_pos;
 
-    // Sync GUI parameters to systems
+    /* propagation des sliders GUI vers les systemes de particules */
     lava_system.emission_rate = emission_rate;
     lava_system.velocity_scale = velocity_scale;
     smoke_system.emission_rate = smoke_rate;
 
-    // ---- 1) Update simulations ----
+    /* mise a jour des simulations (particules de lave en chute libre, particules de fumee en spirale) */
     lava_system.update(anim_time, anim_dt);
     smoke_system.update(anim_time, anim_dt);
 
-    // ---- 2) Opaque objects ----
+    /* objets opaques : terrain et arbres */
     terrain.draw(environment, gui.display_wireframe);
     trees.draw(environment, gui.display_wireframe);
 
-    // ---- 3) Lava pool (emissive shader — suppress missing-uniform warnings) ----
+    /* nappe de lave emissive (shader lava sans illumination Phong complete) */
     draw(lava_pool, environment, 1, false);
 
-    // ---- 4) Lava particles (emissive spheres) ----
+    /* particules de lave : spheres orange traitees comme objets opaques */
     lava_system.draw(environment);
 
-    // ---- 5) Grass (discard-based transparency, no blending needed) ----
+    /* herbe : alpha discard dans le shader, donc opaque du point de vue OpenGL, pas de tri */
     grass.draw(environment);
 
-    // ---- 6) Smoke (semi-transparent billboards — must be last + sorted) ----
+    /* fumee semi-transparente : on active l'alpha blending, on coupe le depth write
+       (le test reste actif), on dessine en dernier dans l'ordre back-to-front (tri fait
+       dans smoke_system.draw), puis on restaure l'etat OpenGL. (bloc genere par IA) */
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask(GL_FALSE);
 
-    vec3 cam_pos = camera_control.camera_model.position();
     smoke_system.draw(environment, cam_pos, environment.camera_view);
 
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
 }
 
-// ============================================================
-// GUI
-// ============================================================
 void scene_structure::display_gui()
 {
-    ImGui::Text("== Volcano Controls ==");
+    ImGui::Text("boutons de controle");
     ImGui::Separator();
 
     ImGui::Checkbox("Pause animation", &gui.pause_animation);
@@ -237,7 +224,7 @@ void scene_structure::display_gui()
     ImGui::SliderFloat("Emission rate (part/s)", &emission_rate, 0.0f, 200.0f);
     ImGui::SliderFloat("Lava velocity scale", &velocity_scale, 0.2f, 3.0f);
 
-    if (ImGui::Button("BOOM ! Mega eruption"))
+    if (ImGui::Button("Mega eruption"))
     {
         lava_system.mega_eruption(timer.t);
     }
@@ -249,8 +236,6 @@ void scene_structure::display_gui()
     ImGui::Separator();
     ImGui::Text("Terrain (Perlin)");
     bool terrain_changed = false;
-    terrain_changed |= ImGui::SliderFloat("Frequency", &terrain.perlin_frequency, 0.01f, 0.5f);
-    terrain_changed |= ImGui::SliderInt("Octaves", &terrain.perlin_octaves, 1, 10);
     terrain_changed |= ImGui::SliderFloat("Persistence", &terrain.perlin_persistence, 0.1f, 0.9f);
     if (terrain_changed)
         terrain.rebuild();
@@ -264,7 +249,7 @@ void scene_structure::display_gui()
     ImGui::Text("Atmosphere");
     ImGui::SliderFloat("Fog distance", &fog_distance, 5.0f, 80.0f);
     ImGui::ColorEdit3("Fog color", &fog_color.x);
-    // Keep background in sync with fog
+    /* on garde le fond de fenetre synchronise avec la couleur du brouillard a chaque frame */
     environment.background_color = fog_color;
 
     ImGui::Separator();
@@ -274,9 +259,6 @@ void scene_structure::display_gui()
         camera_projection.field_of_view = fov_deg * Pi / 180.0f;
 }
 
-// ============================================================
-// CALLBACKS
-// ============================================================
 void scene_structure::mouse_move_event()
 {
     if (!inputs.keyboard.shift)

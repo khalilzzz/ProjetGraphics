@@ -36,6 +36,8 @@ void lava_particles_structure::emit(float t)
 
 void lava_particles_structure::update(float t, float dt)
 {
+    /* emission cadencee par accumulateur de temps : on emet tant que l'accumulateur depasse 1/taux,
+       ce qui rend le taux d'emission independant du framerate */
     if (emission_rate > 0.0f) {
         time_accum += dt;
         float period = 1.0f / emission_rate;
@@ -45,10 +47,12 @@ void lava_particles_structure::update(float t, float dt)
         }
     }
 
+    /* pour chaque particule vivante : on calcule sa position par la formule fermee de la chute libre
+       p(age) = 0.5*g*age^2 + v0*age + p0, et on la tue si elle a depasse sa lifetime ou si elle tombe trop bas */
     for (auto& p : particles) {
         if (!p.alive) continue;
         float age = t - p.t0;
-        if (age < 0 || age > p.lifetime) { p.alive = false; continue; }
+        if (age > p.lifetime) { p.alive = false; continue; }
         p.current_pos = 0.5f * GRAVITY * age * age + p.v0 * age + p.p0;
         if (p.current_pos.z < -4.0f) p.alive = false;
     }

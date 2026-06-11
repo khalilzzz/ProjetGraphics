@@ -17,6 +17,7 @@ uniform float light_range;
 
 uniform float fog_distance;
 uniform vec3  fog_color;
+uniform vec3  camera_position;
 
 struct phong_structure {
     float ambient;
@@ -42,10 +43,6 @@ uniform material_structure material;
 
 void main()
 {
-    mat3 O = transpose(mat3(view));
-    vec3 last_col = vec3(view * vec4(0.0, 0.0, 0.0, 1.0));
-    vec3 camera_position = -O * last_col;
-
     vec3 N = normalize(fragment.normal);
     if (material.texture_settings.two_sided && gl_FrontFacing == false)
         N = -N;

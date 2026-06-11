@@ -71,7 +71,7 @@ void smoke_structure::update(float t, float dt)
         p.current_pos.y = p.p0.y + 0.4f * age * std::sin(1.5f * age);
         p.current_pos.z = p.p0.z + 1.8f * age;
         p.current_size = p.size_init * (1.0f + 1.2f * norm_age);
-        // Fade in then out
+        /* fade in rapide puis fade out lineaire jusqu'a la mort, pour eviter les pops a l'apparition/disparition */
         float fade_in = std::min(1.0f, age / 0.5f);
         float fade_out = 1.0f - norm_age;
         p.current_alpha = fade_in * fade_out * 0.55f;
@@ -80,7 +80,9 @@ void smoke_structure::update(float t, float dt)
 
 void smoke_structure::draw(environment_structure const &env, vec3 const &camera_pos, mat4 const &view)
 {
-    // Build billboard rotation from camera view matrix (row-major in CGP)
+    /* construction de la matrice de rotation du billboard sphérique a partir de la matrice de vue
+       (right et up sont les premieres lignes de view en convention row-major de CGP) : ainsi chaque
+       quad regarde toujours la camera. (bloc genere par IA — convention CGP ligne/colonne) */
     vec3 cam_right = {view(0, 0), view(0, 1), view(0, 2)};
     vec3 cam_up = {view(1, 0), view(1, 1), view(1, 2)};
     vec3 cam_bwd = cross(cam_right, cam_up);
@@ -90,8 +92,9 @@ void smoke_structure::draw(environment_structure const &env, vec3 const &camera_
         {cam_right.z, cam_up.z, cam_bwd.z});
     rotation_transform billboard_rot = rotation_transform::from_matrix(R);
 
-    // Collect alive particles and sort back-to-front
-    std::vector<int> alive_idx;
+    /* on collecte les indices des particules vivantes dans un buffer membre (pas d'allocation par frame),
+       puis on les trie par distance camera decroissante pour le rendu back-to-front du blending alpha */
+    alive_idx.clear();
     for (int i = 0; i < (int)particles.size(); ++i)
         if (particles[i].alive)
             alive_idx.push_back(i);
@@ -102,6 +105,7 @@ void smoke_structure::draw(environment_structure const &env, vec3 const &camera_
         float db = norm(particles[b].current_pos - camera_pos);
         return da > db; });
 
+    /* dessin dans l'ordre trie (les plus loin en premier) avec l'alpha de la particule */
     for (int i : alive_idx)
     {
         auto &p = particles[i];

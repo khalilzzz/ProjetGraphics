@@ -18,8 +18,10 @@ uniform float light_range;
 uniform vec3  light_color;
 uniform float fog_distance;
 uniform vec3  fog_color;
+uniform vec3  camera_position;
 
-// Value noise
+/* tout le bloc bruit + FBM ci-dessous (hash, value noise, fbm 4 octaves)
+   a ete genere par IA : ce sont des recettes GLSL classiques de bruit procedural */
 float hash2(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
@@ -43,33 +45,32 @@ float fbm(vec2 p) {
 
 void main()
 {
+    /* tout le corps de main() (distorsion UV animee, champ de chaleur, glow additif) a ete
+       genere par IA puis adapte aux couleurs et a la vitesse de notre lave */
     float t = time * 0.25;
     vec2 uv = fragment.uv;
 
-    // Distort UV with animated FBM
+    /* on distord les UV par un FBM dependant du temps pour donner l'aspect de matiere qui bouillonne */
     float dx = fbm(uv * 3.0 + vec2(t, 0.0)) - 0.5;
     float dy = fbm(uv * 3.0 + vec2(5.2, 1.3 + t)) - 0.5;
     vec2 uv_anim = uv + 0.18 * vec2(dx, dy);
 
-    // Lava colors: hot orange-red gradient based on noise
+    /* champ de chaleur : un second FBM interpole entre rouge sombre et jaune-orange selon l'intensite */
     float heat = fbm(uv_anim * 4.0 + t);
-    vec3 hot_color  = vec3(1.0, 0.85, 0.1);   // bright yellow-orange
-    vec3 cool_color = vec3(0.8, 0.1, 0.02);   // dark red
+    vec3 hot_color  = vec3(1.0, 0.85, 0.1);
+    vec3 cool_color = vec3(0.8, 0.1, 0.02);
     vec3 lava = mix(cool_color, hot_color, heat * heat);
 
-    // Additive bright glow at the hottest points
+    /* glow additif sur les zones les plus chaudes pour accentuer la sensation d'incandescence */
     lava += 0.3 * vec3(1.0, 0.4, 0.0) * max(0.0, heat - 0.6);
 
-    // Light attenuation (lave partiellement émissive : reste brillante même loin)
+    /* attenuation legere par la lumiere : on garde la lave emissive (elle reste brillante au loin) */
     vec3 L_vec = light - fragment.position;
     float light_dist = length(L_vec);
     float attenuation = clamp(1.0 - light_dist / light_range, 0.0, 1.0);
     lava *= (0.6 + 0.4 * attenuation);
 
-    // Fog
-    mat3 O = transpose(mat3(view));
-    vec3 last_col = vec3(view * vec4(0.0, 0.0, 0.0, 1.0));
-    vec3 camera_position = -O * last_col;
+    /* melange final avec le brouillard atmospherique selon la distance a la camera */
     float d = length(fragment.position - camera_position);
     float alpha_fog = clamp(d / fog_distance, 0.0, 1.0);
     vec3 final_color = mix(lava, fog_color, alpha_fog);

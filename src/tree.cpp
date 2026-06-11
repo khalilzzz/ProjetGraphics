@@ -5,7 +5,7 @@ using namespace cgp;
 void tree_structure::initialize(opengl_shader_structure const &shader,
                                 std::function<float(float, float)> height_fn)
 {
-    // Trunk: brown cylinder (1/3 of original size)
+    /* tronc : un simple cylindre brun texture avec wood.jpg */
     trunk.initialize_data_on_gpu(mesh_primitive_cylinder(0.06f, {0, 0, 0}, {0, 0, 0.6f}, 8, 16, false));
     trunk.texture.load_and_initialize_texture_2d_on_gpu(
         project::path + "assets/wood.jpg", GL_REPEAT, GL_REPEAT);
@@ -15,7 +15,8 @@ void tree_structure::initialize(opengl_shader_structure const &shader,
     trunk.material.phong.specular = 0.0f;
     trunk.shader = shader;
 
-    // Leaves: 3 stacked cones, green (1/3 of original size)
+    /* feuillage : on empile trois cones de rayons decroissants pour obtenir une silhouette de conifere,
+       concatenes dans une seule mesh pour ne faire qu'un appel draw par arbre */
     mesh leaves_mesh;
     leaves_mesh.push_back(mesh_primitive_cone(0.30f, 0.33f, {0, 0, 0.47f}, {0, 0, 1}, true, 14, 8));
     leaves_mesh.push_back(mesh_primitive_cone(0.23f, 0.30f, {0, 0, 0.67f}, {0, 0, 1}, true, 14, 8));
@@ -27,14 +28,15 @@ void tree_structure::initialize(opengl_shader_structure const &shader,
     leaves.material.phong.specular = 0.0f;
     leaves.shader = shader;
 
-    // Place 350 trees in a ring around the volcano
+    /* placement de 400 arbres en couronne autour du volcan via rejection sampling sur un carre,
+       avec rotation et echelle aleatoires pour casser l'effet de clones */
     int count = 0;
     while (count < 400)
     {
-        float x = rand_uniform(-20.0f, 20.0f);
-        float y = rand_uniform(-20.0f, 20.0f);
+        float x = rand_uniform(-30.0f, 30.0f);
+        float y = rand_uniform(-30.0f, 30.0f);
         float r = std::sqrt(x * x + y * y);
-        if (r < 8.5f || r > 19.0f)
+        if (r < 8.5f || r > 29.0f)
             continue;
         float z = height_fn(x, y);
         positions.push_back({x, y, z});
